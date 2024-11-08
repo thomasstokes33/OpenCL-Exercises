@@ -52,39 +52,40 @@ int main(int argc, char *argv[])
 //--------------------------------------------------------------------------------
 // Create a context and queue
 //--------------------------------------------------------------------------------
+   
 
-    try
+    cl_uint deviceIndex = 0;
+    parseArguments(argc, argv, &deviceIndex);
+
+    // Get list of devices
+    std::vector<cl::Device> devices;
+    unsigned numDevices = getDeviceList(devices);
+
+    // Check device index in range
+    if (deviceIndex >= numDevices)
     {
+        std::cout << "Invalid device index (try '--list')\n";
+        return EXIT_FAILURE;
+    }
 
-        cl_uint deviceIndex = 0;
-        parseArguments(argc, argv, &deviceIndex);
+    cl::Device device = devices[deviceIndex];
 
-        // Get list of devices
-        std::vector<cl::Device> devices;
-        unsigned numDevices = getDeviceList(devices);
+    std::string name;
+    getDeviceName(device, name);
+    std::cout << "\nUsing OpenCL device: " << name << "\n";
 
-        // Check device index in range
-        if (deviceIndex >= numDevices)
-        {
-          std::cout << "Invalid device index (try '--list')\n";
-          return EXIT_FAILURE;
-        }
-
-        cl::Device device = devices[deviceIndex];
-
-        std::string name;
-        getDeviceName(device, name);
-        std::cout << "\nUsing OpenCL device: " << name << "\n";
-
-        std::vector<cl::Device> chosen_device;
-        chosen_device.push_back(device);
-        cl::Context context(chosen_device);
-        cl::CommandQueue queue(context, device);
-
+    std::vector<cl::Device> chosen_device;
+    chosen_device.push_back(device);
+    cl::Context context(chosen_device);
+    cl::CommandQueue queue(context, device);
+    cl::Program program = cl::Program(context, kernelsource, false);
+ try
+    {
 //--------------------------------------------------------------------------------
 // Run sequential matmul
 //--------------------------------------------------------------------------------
-
+        char *options = "";
+        program.build(options);
 
         initmat(N, h_A, h_B, h_C);
 
@@ -124,12 +125,12 @@ int main(int argc, char *argv[])
 
         // Create the compute program from the source buffer
         cl::Program program(context, kernelsource, true);
-
         // Create the compute kernel from the program
         cl::make_kernel<int, cl::Buffer, cl::Buffer, cl::Buffer> naive_mmul(program, "mmul");
         cl::Kernel stats(program,"mmul");
         printf("\n===== OpenCL, matrix mult, C(i,j) per work item, order %d ======\n",N);
-        printf("work group size: %lu", stats.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(device));
+
+        printf("work group size: %lu\n", stats.getWorkGroupInfo<CL_KERNEL_WORK_GROUP_SIZE>(device));
 
         // Do the multiplication COUNT times
         for (int i = 0; i < COUNT; i++)
@@ -142,8 +143,9 @@ int main(int argc, char *argv[])
             // a dot product for each element of the product matrix.  The local work
             // group size is set to NULL ... so I'm telling the OpenCL runtime to
             // figure out a local work group size for me.
-            cl::NDRange global(N, N);
-            naive_mmul(cl::EnqueueArgs(queue, global),
+            cl::NDRange global(N);
+            cl::NDRange local(ORDER/16); //64 work items per work group. there will be 16 work groups. Less work units may lead to underutilisation.
+            naive_mmul(cl::EnqueueArgs(queue, global, 2),
                     N, d_a, d_b, d_c);
 
             queue.finish();
@@ -165,6 +167,10 @@ int main(int argc, char *argv[])
                   << err_code(err.err())
                   << ")"
                   << std::endl;
+        if (err.err() == CL_BUILD_PROGRAM_FAILURE) {
+            std::string log =  program.getBuildInfo<CL_PROGRAM_BUILD_LOG>(device);
+            std::cout << log <<std::endl;
+        }
     }
 
     return EXIT_SUCCESS;

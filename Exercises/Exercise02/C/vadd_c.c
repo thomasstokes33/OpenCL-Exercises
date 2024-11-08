@@ -171,7 +171,7 @@ int main(int argc, char** argv)
     checkError(err, "Creating buffer d_c");
 
     // Write a and b vectors into compute device memory
-    err = clEnqueueWriteBuffer(commands, d_a, CL_TRUE, 0, sizeof(float) * count, h_a, 0, NULL, NULL);
+    err = clEnqueueWriteBuffer(commands, d_a, CL_FALSE, 0, sizeof(float) * count, h_a, 0, NULL, NULL);
     checkError(err, "Copying h_a to device at d_a");
 
     err = clEnqueueWriteBuffer(commands, d_b, CL_TRUE, 0, sizeof(float) * count, h_b, 0, NULL, NULL);
