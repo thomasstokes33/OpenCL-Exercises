@@ -7,10 +7,14 @@ __kernel void mmul(const int N,
                                // This means that 1024/64=16 which means we have 16 work groups .
     int j,k;
     float tmp = 0.0f;
+    float awrk[1024];
+    for (k = 0; k < N; k++) {
+        awrk[k] = A[i * N + k];
+    }
     for (j = 0; j < N; j++) {
         tmp = 0.0f;
         for (k = 0; k < N; k++) {
-            tmp += A[i * N + k] * B[k * N + j];
+            tmp += awrk[k] * B[k * N + j];
         }
         C[i * N + j] = tmp;
     }
