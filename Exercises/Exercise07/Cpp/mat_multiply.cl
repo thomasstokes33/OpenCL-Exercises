@@ -7,7 +7,7 @@ __kernel void mmul(const int N,
                                // This means that 1024/64=16 which means we have 16 work groups .
     int j,k;
     float tmp = 0.0f;
-    float awrk[1024];
+    float awrk[1024]; // a work is in private memory as each work item is using a different row.
     for (k = 0; k < N; k++) {
         awrk[k] = A[i * N + k];
     }
