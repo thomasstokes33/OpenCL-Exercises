@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
             // figure out a local work group size for me.
             cl::NDRange global(N);
             cl::NDRange local(ORDER/16); //64 work items per work group. there will be 16 work groups. Less work units may lead to underutilisation.
-            naive_mmul(cl::EnqueueArgs(queue, global, 2),
+            naive_mmul(cl::EnqueueArgs(queue, global, local),
                     N, d_a, d_b, d_c);
 
             queue.finish();
