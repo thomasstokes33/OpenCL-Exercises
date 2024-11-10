@@ -27,7 +27,7 @@
 #include <err_code.h>
 #include "device_picker.hpp"
 
-std::string kernelsource = util::loadProgram("mat_multiply.cl");
+std::string kernelsource = util::loadProgram("mat_multiply_local.cl");
 
 int main(int argc, char *argv[])
 {
@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
         // Create the compute program from the source buffer
         cl::Program program(context, kernelsource, true);
         // Create the compute kernel from the program
-        cl::make_kernel<int, cl::Buffer, cl::Buffer, cl::Buffer> naive_mmul(program, "mmul");
+        cl::make_kernel<int, cl::Buffer, cl::Buffer, cl::Buffer, cl::LocalSpaceArg> row_column(program, "mmul");
         cl::Kernel stats(program,"mmul");
         printf("\n===== OpenCL, matrix mult, C(i,j) per work item, order %d ======\n",N);
 
@@ -145,8 +145,9 @@ int main(int argc, char *argv[])
             // figure out a local work group size for me.
             cl::NDRange global(N);
             cl::NDRange local(ORDER/16); //64 work items per work group. there will be 16 work groups. Less work units may lead to underutilisation.
-            naive_mmul(cl::EnqueueArgs(queue, global, local),
-                    N, d_a, d_b, d_c);
+            cl::LocalSpaceArg local_mem = cl::Local(sizeof(float) * N);  //N could be the 3rd dimension so if we have m*p and p*n, this could be p.
+            row_column(cl::EnqueueArgs(queue, global, local),
+                    N, d_a, d_b, d_c, local_mem);
 
             queue.finish();
 
